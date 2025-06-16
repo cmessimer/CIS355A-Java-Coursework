@@ -1,0 +1,327 @@
+9.6.1: Create a Grade Management application that reads and writes to a database
+
+Most production desktop and mobile applications read and write to databases. Current day applications typically store their data "in the cloud" so the data can be accessed at any time and from any location that has Internet access. Cloud databases give the users access to their data from their corporate office, their home office, or even their favorite coffee shop -- anywhere with Internet access! Major cloud database providers include Amazon RDS, Google Cloud, Microsoft Azure, and many more. These cloud services typically offer a "Free Tier" so you can play with their services and learn how they work for free. In this project, we are going to read and write to a local database. Keep in mind, though, that reading and writing to a cloud database is very similar once you have signed up for the cloud service and set up the environment.
+For this project, your local school district has hired you to create a Grade Management System to help their teachers store and retrieve student data. The school district wants persistent data, but they do not want to read and write to files since only one person can access the file at a time. They want multiple people to access the data at the same time, including teachers, administrators, parents and students. Databases provide a feature called "record locking" that allows multiple users to access the database all at the same time.
+As we create the application, we need to consider "design patterns" to make our applications easier to create and easier to maintain. When you read and write to databases, you should use a "border class" to implement the CRUD commands for the database. CRUD stands for "create", "read", "update", and "delete". You want to be able to create records, read records, update records, and delete records. The border class will make it easier to create the application in the first place. Then, as the number of users grows, you may decide to a more powerful Oracle database or a more accessible cloud database. If so, you can simply update the border class!
+Start with a menu that repeats until the user chooses to exit. Remember to create the switch statement and call methods depending on the choice from the user. Test the program and make certain that everything works.
+
+
+Menu
+
+1) Add Student
+2) Delete Student
+3) Display All Students
+4) Exit
+
+Enter your choice:
+
+
+We want to read and write to a database now. The process requires three steps. Connect to the database. Read or write your information. Then, close the connection. It is very important to close the connection since databases normally have a connection limit. For example, MySQL will support 151 concurrent connections by default.
+Let's create our border class to read and write to our local database! First, create a class called StudentDB.java if it does not already exist. In the StudentDB.java file, add a private String constants called CONNECTION_STRING, USER_NAME, and PASSWORD. Notice that constants are all capital letters to follow industry standards. Our local database does not need a user name or password. However, we want these constants available to remind us to secure our database if we move to a shared network database or a database on the cloud.
+This example includes the StudentDB class declaration to show you the placement for your constants.
+
+public class StudentDB
+{
+   // class level constants -- "final" makes it a constant
+   private final String CONNECTION_STRING = "jdbc:sqlite:database.db";
+   private final String USER_NAME = "N/A";
+   private final String PASSWORD = "N/A";
+
+
+In the next part, we want to create a constructor. The constructor is a special method that has the same name as the class and does not have a return type, not even void. The constructor automatically runs when the border class object is created to "construct" the object. The constructor should check to make sure that the database driver exists in the project so the application knows how to "talk" to the database. In addition, the constructor should check to make sure that the students table exists and create the table if it does not already exist. The constructor needs to throw a ClassNotFoundException if the driver is not found. In addition, the constructor needs to throw an SQLException if it is not able to connect to the database. The constructor should go directly under your constants and should look like this:
+
+// constructor
+public StudentDB() throws ClassNotFoundException, SQLException
+{
+   // check for the driver
+   Class.forName("org.sqlite.JDBC");
+   
+   // connect to the database
+   Connection conn = DriverManager.getConnection(CONNECTION_STRING);
+
+   // create table if it does not already exist
+   String sqlCreateTable = "CREATE TABLE IF NOT EXISTS students "
+      + "(StudentID INTEGER PRIMARY KEY, "
+      + "StudentName TEXT, Test1 REAL, Test2 REAL, Test3 REAL)";
+   Statement stmt = conn.createStatement();
+   stmt.execute(sqlCreateTable);
+
+   // close the connection to the database
+   conn.close();
+}
+
+
+Now, let's create the add( ) method so we can write a new record to the database. Remember, it is three steps to create a new record:  connect, write, close. Now, let's talk about security. ALWAYS use a PreparedStatement to write to a database when we get input from users to help prevent hacking. Injection attacks are very common against databases. Visit this website to learn more about injection attacks and database security:  https://sqlzoo.net/hack/
+The add( ) method should receive a Student object. The method should throw an SQLException if it is not able to connect to the database or if the SQL command fails for any reason. Use question marks as placeholders in your SQL statement. Then, use the PreparedStatement commands to set those values. When you finish, your method should look like this:
+
+public void add( Student stu ) throws SQLException
+{
+   // ALWAYS use PreparedStatement when you get input from users.
+   // Injection attacks are very common against databases.
+   // https://sqlzoo.net/hack/
+
+   // connect to the database
+   Connection conn = DriverManager.getConnection(CONNECTION_STRING);
+   
+   // write the Student record to the database
+   String strSQL = "INSERT INTO students (StudentID, StudentName, Test1, Test2, Test3) "
+      + "VALUES (?, ?, ?, ?, ?)";
+   PreparedStatement pstmt = conn.prepareStatement(strSQL);
+   pstmt.setInt( 1, stu.getID() );
+   pstmt.setString( 2, stu.getName() );
+   pstmt.setDouble( 3, stu.getTest1() );
+   pstmt.setDouble( 4, stu.getTest2() );
+   pstmt.setDouble( 5, stu.getTest3() );
+
+   pstmt.execute();
+
+   // close the connection to the database
+   conn.close();
+}
+
+
+Now, go to your Main class. When the user chooses 1, your switch will call your addStudent( ) method and also the pause( ) method. In the addStudent( ) method, get the student information (ID, name, test1, test2, test3). Then, create a Student object using this information. In a try-catch block, create a border class object. Then, use the object's add( ) method to write the student object's information to the database. Finally, tell the user that the record was written to the database. Create two catch clauses. In the first catch clause, catch the ClassNotFoundException. If this exception (error) is caught, tell the user that the database driver was not found. In the second catch clause, catch the SQLException. If this exception (error) is caught, tell that user that there was a database error and then show the database error message.
+The addStudent( ) method should be located just below (and outside of) the main method. The addStudent( ) method should look like this. Also create the pause( ) method so we can call it at each branch of the switch.
+
+
+public static void addStudent()
+{
+   // get student information
+   System.out.print( "\nEnter student ID: " );
+   int stuID = scan.nextInt();     // 3 ENTER
+   scan.nextLine();                // use up the ENTER key since getting String next
+   System.out.print( "Enter student name: " );
+   String stuName = scan.nextLine();
+   System.out.print( "Enter test1 grade: " );
+   double test1 = scan.nextDouble();
+   System.out.print( "Enter test2 grade: " );
+   double test2 = scan.nextDouble();
+   System.out.print( "Enter test3 grade: " );
+   double test3 = scan.nextDouble();   // 92.1 ENTER
+   scan.nextLine();                    // use up the ENTER key
+
+   // create a Student object
+   Student stu = new Student(stuID, stuName, test1, test2, test3);
+
+   // add the Student to the database using the StudentDB object
+   try
+   {
+      StudentDB db = new StudentDB();
+      db.add(stu);
+      System.out.println( "\nRecord was written to the database." );
+   }
+   catch (ClassNotFoundException ex)
+   {
+      System.out.println( "\nError. Database driver not found: " + ex.getMessage() );
+   }
+   catch (SQLException ex)
+   {
+      System.out.println( "\nDatabase Error: " + ex.getMessage() );
+   }
+}
+
+private static void pause()
+{
+   System.out.print( "\nPress ENTER to continue..." );
+   scan.nextLine();    // pause until user hits ENTER key
+   System.out.println( "\n\n" );
+}
+
+
+When you run this code, it will crash. The error will show that the Student class is not complete. Go to the bottom to see the functional requirements for the Student class and complete it.  The Student behaviors should look like this:
+
+// behaviors
+public String toString()
+{
+   return name;
+}
+
+public double calculateAverage()
+{
+   return (test1 + test2 + test3) / 3.0;
+}
+
+public String calculateLetterGrade()
+{
+   double avg = calculateAverage();
+
+   if( avg >= 90.0 )
+      return "A";
+   else if( avg >= 80.0 )
+      return "B";
+   else if( avg >= 70.0 )
+      return "C";
+   else if( avg >= 60.0 )
+      return "D";
+   else
+      return "F";
+}
+
+
+Let's get our student records from the database and display them. We will use our border class to get the records. Then, we will use our main class to display the records.
+
+Go to your StudentDB.java file. Add the getAll( ) method below the add( ) method, but stay inside of the StudentDB class. The getAll( ) method should return an ArrayList that is able to work with Student objects. In addition, the getAll( ) method should throw an SQLException if it is not able to connect to the database or if something goes wrong when it tries to read the records.
+At the top of the getAll( ) method, create an empty ArrayList. Then, connect to the database. Since we are not getting input from the user, we can use a Statement to read the records from the database and receive the records into a ResultSet object.  Use a while loop to read each record, create a Student object with the record information, and then add the Student object to the ArrayList.  When you read the record data, be sure to use getString( ) or getInt( ) or getDouble( ) as needed.
+Once you have read all the records from the database and added the Student objects to the ArrayList, you can return the ArrayList to the calling method.  This example code includes the curly braces at the bottom of the file to show you the exact placement.
+
+   public ArrayList<Student> getAll() throws SQLException
+   {
+      // create an empty ArrayList
+      ArrayList<Student> list = new ArrayList<Student>();
+
+      // connect to the database
+      Connection conn = DriverManager.getConnection(CONNECTION_STRING);
+
+      // get records from the database
+      String strSQL = "SELECT * FROM students";
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(strSQL);
+
+      while (rs.next())     // read while we have more records
+      {
+         // get information from the record and create a Student object
+         int stuID = rs.getInt(1);
+         String name = rs.getString(2);
+         double test1 = rs.getDouble(3);
+         double test2 = rs.getDouble(4);
+         double test3 = rs.getDouble(5);
+
+         Student stu = new Student(stuID, name, test1, test2, test3);
+
+         // add the Student object to the ArrayList
+         list.add(stu);
+      }
+
+      // close the connection to the database
+      conn.close();
+
+      // return the ArrayList
+      return list;
+   } // curly brace to close the getAll() method
+} // curly brace to close the StudentDB class (end of this file)
+
+
+Now, go to your Main class. When the user chooses 3, your switch will call your displayAllStudents( ) method and also the pause( ) method. In the displayAllStudents( ) method, display the output heading (top of your output grid / column headings). Then, create a try-catch exception handling block.  In the try part, create a border class object. Call the object's getAll( ) method and receive the return value into an ArrayList that is able to work with Student objects. Then, for every Student object, display the ID, name, test1, test2, test3, average, and letter grade. Be sure to use "printf" or "print with formatting" so you can create columns for your data. In the example below, we use a for loop.  Can you update the example code to use a foreach loop instead?
+Create two catch clauses. In the first catch clause, catch the ClassNotFoundException. If this exception (error) is caught, tell the user that the database driver was not found. In the second catch clause, catch the SQLException. If this exception (error) is caught, tell that user that there was a database error and then show the database error message.
+The displayAllStudents( ) method should be located at the bottom of the Main class outside of all other methods, but still inside of the Main class. This example code includes the bottom curly braces to show the exact placement.
+
+
+   private static void displayAllStudents()
+   {
+      // show output heading
+      System.out.println("\nGradebook:\n");
+      System.out.printf("%-5s%-15s%-10s%-10s%-10s%-10s%n", "ID", "Name",
+         "Test1", "Test2", "Test3", "Average", "Grade");
+
+      // read the student records
+      try
+      {
+         StudentDB db = new StudentDB();
+         ArrayList<Student> data = db.getAll();
+         for (int i = 0; i < data.size(); i++)
+         {
+            Student stu = data.get(i);
+            System.out.printf("%-5d%-15s%-10.1f%-10.1f%-10.1f%-10.1f%-10s%n",
+               stu.getID(), stu.getName(), stu.getTest1(), stu.getTest2(),
+               stu.getTest3(), stu.calculateAverage(), stu.calculateLetterGrade());
+         }
+      }
+      catch(ClassNotFoundException ex)
+      {
+         System.out.println("\nError. Database driver not found: " + ex.getMessage());
+      }
+      catch(SQLException ex)
+      {
+         System.out.println("\nDatabase Error: " + ex.getMessage());
+      }
+   } // end of method
+} // end of class
+
+
+The final step for our project is to allow the teachers and administrators to delete student records as needed. We will use our Main class to get the student's name to delete. Then, we will use our border class to delete the record from the database.
+
+Go to your StudentDB.java file. Add the delete( ) method below the add( ) method and above the getAll( ) method. The delete method should receive the name to delete and return a boolean that is true if the name was deleted or false if the name was not deleted. In addition, the the delete( ) method should throw an SQLException if it is not able to connect to the database or if something goes wrong when it tries to delete the record.
+At the top of the delete( ) method, connect to the database. Then, use a PreparedStatement to delete the record from the databse. When you run the PreparedStatement, be sure to use the executeUpdate( ) command. It will return the number of rows that were affected. If zero rows were affected, then the record was not deleted. Return true if row(s) were affected. Return false if zero rows were affected.
+This example code includes the heading of the next method to show you the exact placement.
+
+public boolean delete(String nameToDelete) throws SQLException
+{
+   // connect to the database
+   Connection conn = DriverManager.getConnection(CONNECTION_STRING);
+
+   // delete the record
+   String strSQL = "DELETE FROM students WHERE StudentName LIKE ?";
+   PreparedStatement pstmt = conn.prepareStatement(strSQL);
+   pstmt.setString(1, nameToDelete);
+   int rowsAffected = pstmt.executeUpdate();
+
+   // close the connection to the database
+   conn.close();
+
+   if (rowsAffected > 0)
+      return true;   // record was deleted
+   else
+      return false;  // zero rows affected so record was not found
+}
+
+public ArrayList<Student> getAll() throws SQLException
+{
+
+
+Now, go to your Main class. When the user chooses 2, your switch should call your deleteStudent( ) method and also the pause( ) method. In the deleteStudent( ) method, get the name of the student to delete. Then, create a try-catch exception handling block.  In the try part, create a border class object. Call the object's delete( ) method and receive the return value into a boolean variable. If the boolean variable is true, tell the user that the record was deleted from the database. Otherwise, tell the user that the record was not found.
+Create two catch clauses. In the first catch clause, catch the ClassNotFoundException. If this exception (error) is caught, tell the user that the database driver was not found. In the second catch clause, catch the SQLException. If this exception (error) is caught, tell that user that there was a database error and then show the database error message.
+
+The deleteStudent( ) method can be located anywhere in the Main class outside of all other methods. This example code places the deleteStudent( ) method below the addStudent( ) method and above the displayAllStudents( ) method. This example code includes the first line of the displayAllStudents( ) method to show you the exact placement.
+
+
+private static void deleteStudent()
+{
+   // get the name of the student to delete
+   System.out.print("\nEnter name of student to delete: ");
+   String nameToDelete = scan.nextLine();
+
+   try
+   {
+      // delete the record using the border class
+      StudentDB data = new StudentDB();
+      boolean result = data.delete(nameToDelete);
+      if (result)              // same as:  if (result == true)
+         System.out.println("\nRecord was deleted from the database.");
+      else
+         System.out.println("\nRecord was not found.");
+   }
+   catch (ClassNotFoundException ex)
+   {
+      System.out.println("\nError: Driver not found. Error message: " + ex.getMessage());
+   }
+   catch (SQLException ex)
+   {
+      System.out.println("\nError: " + ex.getMessage());
+   }
+}
+
+private static void displayAllStudents()
+{
+
+
+Test your code. Run your program and add a few students. End the program. Now, click on Files on the left side. Do you see a new file called "database.db"? This is your local database file! Run your program again. Add a few more students. Display your students. Notice how all of the test scores and the average are all rounded to one decimal place? Delete a couple of students. Does everything work? Great job!
+
+Functional Requirements
+Design and code a class called StudentDB to save information about each student in a database and also to read students information from the database. The constants (CONNECTION_STRING, USER_NAME, PASSWORD) are a private variables. The class must include the following methods.
+
+
+method	description
+StudentDB( )	This constructor checks for the database driver. In addition, if the students table does not exist, the constructor should create it. The constructor throws ClassNotFoundException and SQLException.
+add( )	Receives a Student object and writes the information to the database. This method throws an SQLException if it encounters a database error.
+delete( )	Receives the name to delete and then deletes the record from the database that matches the name. This method throws an SQLException if it encounters a database error.
+getAll( )	Creates an empty ArrayList that is able to work with Student records. Then, retrieves all student records from the database and adds them to the ArrayList. Returns the ArrayList. This method throws an SQLException if it encounters a database error.
+
+
+Design and code a class called Student to store information about each student. The attributes (id, name, test1, test2, test3) are private instance variables. The class must include the following methods.
+
+
+
+method	description
+toString( )	Returns the student's name.
+calculateAverage( )	Adds the three test scores and then divides the sum by 3.0 to get an average and returns it. Remember order of operations!
+calculateLetterGrade( )	Gets the average from the calculateAverage( ) method. Then, returns the letter grade based on the average that was calculated.
